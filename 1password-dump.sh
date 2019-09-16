@@ -11,13 +11,13 @@ fi
 mkdir -p "$outDir"
 
 # Iterate over each vault.
-for vault in `op list vaults | jq ".[]" -c`; do
+for vaultId in `op list vaults | jq '.[].uuid' -cr`; do
   # Obtain some information about the vault.
-  vaultId=`echo $vault | jq ".uuid" -r`
-  vaultName=`echo $vault | jq ".name" -r`
+  vault=`op get vault $vaultId`
+  vaultName="$(printf '%s' "$vault" | jq '.name' -r)"
 
   # Figure where to dump the vault to.
-  vaultDir="$outDir/$(echo $vaultName | sed 's/\//\\\//g')"
+  vaultDir="$outDir/$(printf '%q' "$vaultName" | sed 's|\/|_|g')"
   if [ -f "$vaultDir" ]; then
     # If the vault already exists, append its ID to the end to prevent overwriting.
     vaultDir="$vaultDir.$vaultId"
@@ -28,12 +28,12 @@ for vault in `op list vaults | jq ".[]" -c`; do
   mkdir -p "$vaultDir"
 
   # Iterate over all items (including trash) inside the vault.
-  for itemId in `op list items --include-trash | jq ".[].uuid" -cr`; do
+  for itemId in `op list items --include-trash --vault=$vaultId | jq '.[].uuid' -cr`; do
     # Obtain some information about the item.
     item=`op get item $itemId --include-trash`
-    itemTitle=`echo $item | jq ".overview.title" -r`
-    trashed=`echo $item | jq ".trashed" -r`
-    itemBody=`echo $item | jq "."` # just to format it
+    itemTitle="$(printf '%s' "$item" | jq '.overview.title' -r)"
+    trashed="$(printf '%s' "$item" | jq '.trashed' -r)"
+    itemBody="$(printf '%s' "$item" | jq '.')" # just to format it
 
     # Figure where to dump the item to.
     dot=""
@@ -42,7 +42,7 @@ for vault in `op list vaults | jq ".[]" -c`; do
       dot="."
       trashedText=" (trashed)"
     fi
-    itemFile="$vaultDir/$dot$(echo $itemTitle | sed 's/\//\\\//g')"
+    itemFile="$vaultDir/$dot$(printf '%q' "$itemTitle" | sed 's|\/|_|g')"
     if [ -f "$itemFile" ]; then
       # If the item file already exists, append its ID to the end to prevent overwriting.
       itemFile="$itemFile.$itemId"
